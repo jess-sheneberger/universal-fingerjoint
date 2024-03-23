@@ -1,0 +1,279 @@
+<html>
+
+<head>
+  <title>the SVG fingerjoint box</title>
+  <script src="https://cdn.jsdelivr.net/npm/@svgdotjs/svg.js@3.0/dist/svg.min.js"></script>
+  <script>
+    SVG.on(document, "DOMContentLoaded", function () {
+      var draw = SVG().addTo("body");
+
+      // set width + height of svg to 1000mm square
+      draw.attr({ width: "1000mm", height: "1000mm" });
+
+      var fb = new FingerjointBox()
+        .withStart(new Point(10, 10))
+        .withMaterial(3.1)
+        .withFingerLength(6)
+        .withBoxDimensions(new Point(100, 100, 100))
+        .withDebug(true)
+        .withTop(false);
+
+      fb.draw(draw);
+    });
+
+    class FingerjointBox {
+      constructor() {
+        this.start = new Point(10, 10);
+        this.material = 3.1;
+        this.finger = 6;
+        this.box = new Point(100, 100, 100);
+        this.debug = false;
+        this.top = false;
+      }
+
+      withStart(s) {
+        this.start = s;
+        return this;
+      }
+
+      withMaterial(m) {
+        this.material = m;
+        return this;
+      }
+
+      withFingerLength(len) {
+        this.finger = len;
+        return this;
+      }
+
+      withBoxDimensions(bd) {
+        this.box = bd;
+        return this;
+      }
+
+      withDebug(d) {
+        this.debug = d;
+        return this;
+      }
+
+      withTop(t) {
+        this.top = t;
+        return this;
+      }
+
+      draw(d) {
+        if (this.debug) {
+          // bottom of the box
+          d.rect(this.box.x, this.box.y).move(this.start.x + this.box.z, this.start.y + this.box.y).fill("pink");
+
+          // north side of the box
+          d.rect(this.box.x, this.box.z).move(this.start.x + this.box.z, this.start.y).fill("lightgreen");
+
+          // south side of the box
+          d.rect(this.box.x, this.box.z).move(this.start.x + this.box.z, this.start.y + this.box.z + this.box.y).fill("darkseagreen");
+
+          // east side of the box
+          d.rect(this.box.z, this.box.y).move(this.start.x + this.box.x + this.box.z, this.start.y + this.box.y).fill("dodgerblue");
+
+          // west side of the box
+          d.rect(this.box.z, this.box.y).move(this.start.x, this.start.y + this.box.x).fill("lightblue");
+
+          if (this.top) {
+            // top of the box
+            d.rect(this.box.x, this.box.y).move(this.start.x + this.box.x + this.box.z + this.box.z, this.start.y + this.box.y).fill("lightcoral");
+          }
+        }
+
+        d.path(this.bottom()).stroke({ color: "black", width: 0.5 }).fill('none');
+        d.path(this.north()).stroke({ color: "black", width: 0.5 }).fill('none');
+        d.path(this.south()).stroke({ color: "black", width: 0.5 }).fill('none');
+        d.path(this.west()).stroke({ color: "black", width: 0.5 }).fill('none');
+        d.path(this.east()).stroke({ color: "black", width: 0.5 }).fill('none');
+        if (this.top) {
+          d.path(this.top()).stroke({ color: "black", width: 0.5 }).fill('none');
+        }
+      }
+
+      edge(path, pos, fingerDirection, edgeDirection, segments, firstLast) {
+
+        pos = edgeDirection.mutate(1, pos, firstLast);
+        path.lineTo(pos);
+        for (var i = 0; i < segments; i++) {
+          if (i != 0) {
+            pos = edgeDirection.mutate(1, pos, this.finger);
+            path.lineTo(pos);
+          }
+
+          pos = fingerDirection.mutate(1, pos, this.material);
+          path.lineTo(pos);
+          pos = edgeDirection.mutate(1, pos, this.finger);
+          path.lineTo(pos);
+          pos = fingerDirection.mutate(-1, pos, this.material);
+          path.lineTo(pos);
+        }
+        pos = edgeDirection.mutate(1, pos, firstLast);
+        path.lineTo(pos);
+
+      }
+
+      bottom() {
+        var path = new Path();
+        var pos = new Point(this.start.x + this.box.z, this.start.y + this.box.y + this.material)
+
+        var segments = Math.floor(this.box.x / this.finger / 2) - 1;
+        var firstLast = (this.box.x - (segments * this.finger * 2)) / 2 + this.finger / 2;
+        
+        // start in the north-west corner then clockwise
+        path.moveTo(pos);
+        this.edge(path, pos, new Direction(-1, "y"), new Direction(1, "x"), segments, firstLast);
+        this.edge(path, pos, new Direction(-1, "x"), new Direction(1, "y"), segments, firstLast - this.material);
+        this.edge(path, pos, new Direction(1, "y"), new Direction(-1, "x"), segments, firstLast);
+        this.edge(path, pos, new Direction(1, "x"), new Direction(-1, "y"), segments, firstLast - this.material);
+
+        path.close();
+        return path.toString();
+      }
+
+      north() {
+        var path = new Path();
+        var pos = new Point(this.start.x + this.box.z, this.start.y + this.box.z + this.material)
+
+        var segments = Math.floor(this.box.x / this.finger / 2) - 1;
+        var firstLast = (this.box.x - (segments * this.finger * 2)) / 2 + this.finger / 2;
+
+        // no southern edge, start at southwest corner then clockwise
+        path.moveTo(pos);
+        this.edge(path, pos, new Direction(1, "x"), new Direction(-1, "y"),  segments, firstLast);
+        if (this.top) {
+          this.edge(path, pos, new Direction(1, "y"), new Direction(1, "x"), segments, firstLast);
+        } else {
+          pos = new Point(this.start.x+this.box.z+this.box.x, this.start.y + this.material)
+          path.lineTo(pos);
+        }
+        this.edge(path, pos, new Direction(-1, "x"), new Direction(1, "y"), segments, firstLast);
+
+        return path.toString();
+      }
+
+      south() {
+        var path = new Path();
+        var pos = new Point(this.start.x + this.box.z + this.box.x, this.start.y + this.box.z + this.box.y - this.material);
+
+        var segments = Math.floor(this.box.x / this.finger / 2) - 1;
+        var firstLast = (this.box.x - (segments * this.finger * 2)) / 2 + this.finger / 2;
+
+        // no northern edge, start at northeast corner then clockwise
+        path.moveTo(pos);
+        this.edge(path, pos, new Direction(-1, "x"), new Direction(1, "y"), segments, firstLast);
+        if (this.top) {
+          this.edge(path, pos, new Direction(-1, "y"), new Direction(-1, "x"), segments, firstLast);
+        } else {
+          pos = new Point(this.start.x + this.box.z, this.start.y + this.box.z + this.box.y + this.box.x - this.material)
+          path.lineTo(pos);
+        }
+        this.edge(path, pos, new Direction(1, "x"), new Direction(-1, "y"), segments, firstLast);
+
+        return path.toString();
+      }
+
+      west() {
+        var path = new Path();
+        var pos = new Point(this.start.x + this.box.z, this.start.y + this.box.x + this.box.x - this.material);
+
+        var segments = Math.floor(this.box.x / this.finger / 2) - 1;
+        var firstLast = (this.box.x - (segments * this.finger * 2)) / 2 + this.finger / 2;
+
+        // no east edge, start at southeast corner then clockwise
+        path.moveTo(pos);
+        this.edge(path, pos, new Direction(1, "y"), new Direction(-1, "x"), segments, firstLast);
+        if (this.top) {
+          this.edge(path, pos, new Direction(1, "x"), new Direction(-1, "y"), segments, firstLast);
+        } else {
+          pos = new Point(this.start.x, this.start.y + this.box.x + this.material);
+          path.lineTo(pos);
+
+        }
+        this.edge(path, pos, new Direction(-1, "y"), new Direction(1, "x"), segments, firstLast);
+
+        return path.toString();
+      }
+
+      east() {
+        var path = new Path();
+        var pos = new Point(this.start.x + this.box.x + this.box.z, this.start.y + this.box.y+ this.material);
+
+        var segments = Math.floor(this.box.x / this.finger / 2) - 1;
+        var firstLast = (this.box.x - (segments * this.finger * 2)) / 2 + this.finger / 2;
+
+        // no west edge, start at northeast corner then clockwise
+        path.moveTo(pos);
+        this.edge(path, pos, new Direction(-1, "y"), new Direction(1, "x"), segments, firstLast);
+        if (this.top) {
+          this.edge(path, pos, new Direction(-1, "x"), new Direction(-1, "y"), segments, firstLast);
+        } else {
+          pos = new Point(this.start.x + this.box.x + this.box.z + this.box.z, this.start.y + this.box.y + this.box.y- this.material);
+          path.lineTo(pos);
+
+        }
+        this.edge(path, pos, new Direction(1, "y"), new Direction(-1, "x"), segments, firstLast);
+
+        return path.toString();
+      }
+
+
+
+    }
+
+    class Path {
+      constructor() {
+        this.result = "";
+      }
+      lineTo(pt) {
+        this.result += `L ${pt.x},${pt.y} `;
+      }
+      moveTo(pt) {
+        this.result += `M ${pt.x},${pt.y} `;
+      }
+      close() {
+        this.result += 'Z';
+      }
+      toString() {
+        return this.result;
+      }
+    }
+
+    class Point {
+      constructor(x, y, z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+      }
+
+    }
+
+    class Direction {
+      constructor(d, a) {
+        this.d = d;
+        this.a = a;
+      }
+
+      mutate(m, pt, delta) {
+        if (this.a == "x") {
+          pt.x = pt.x + (m * this.d * delta);
+          return pt;
+        } else if (this.a == "y") {
+          pt.y = pt.y + (m * this.d * delta);
+          return pt;
+        }
+      }
+
+    }
+
+  </script>
+</head>
+
+<body>
+  <p>the SVG fingerjoint box</p>
+</body>
+
+</html>
